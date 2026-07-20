@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 import { getDatabase } from "../config/db.js";
+import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -78,6 +79,19 @@ router.post("/login", async (req, res) => {
       message: "Dogodila se greška na poslužitelju.",
     });
   }
+});
+
+router.get("/me", auth, async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    user: {
+      id: req.user._id.toString(),
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      email: req.user.email,
+      role: req.user.role,
+    },
+  });
 });
 
 export default router;
