@@ -15,23 +15,51 @@ router.get("/", async (req, res) => {
   try {
     const db = getDatabase();
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search?.trim() || "";
+
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+
+    if (search) {
+      filter.name = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    const totalCustomers = await db
+      .collection("customers")
+      .countDocuments(filter);
+
     const customers = await db
       .collection("customers")
-      .find()
-      .sort({ createdAt: -1 })
+      .find(filter)
+      .sort({
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(limit)
       .toArray();
 
     return res.status(200).json({
       success: true,
-      count: customers.length,
-      customers,
+      data: customers,
+      pagination: {
+        totalItems: totalCustomers,
+        currentPage: page,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalCustomers / limit),
+      },
     });
   } catch (error) {
-    console.error("Greška prilikom dohvaćanja kupaca:", error);
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "Dogodila se greška prilikom dohvaćanja kupaca.",
+      message: "Dogodila se greška.",
     });
   }
 });
@@ -64,7 +92,7 @@ router.get("/:id", async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      customer,
+      data: customer,
     });
   } catch (error) {
     console.error("Greška prilikom dohvaćanja kupca:", error);
@@ -132,7 +160,7 @@ router.post("/", async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Kupac je uspješno dodan.",
-      customer: {
+      data: {
         _id: result.insertedId,
         ...newCustomer,
       },
@@ -237,7 +265,7 @@ router.put("/:id", async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Podaci o kupcu uspješno su ažurirani.",
-      customer,
+      data: customer,
     });
   } catch (error) {
     console.error("Greška prilikom uređivanja kupca:", error);

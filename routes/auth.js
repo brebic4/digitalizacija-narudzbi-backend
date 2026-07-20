@@ -62,13 +62,15 @@ router.post("/login", async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Prijava je uspješna.",
-      token,
-      user: {
-        id: user._id.toString(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
+      data: {
+        token,
+        user: {
+          id: user._id.toString(),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+        },
       },
     });
   } catch (error) {
@@ -84,12 +86,14 @@ router.post("/login", async (req, res) => {
 router.get("/me", auth, async (req, res) => {
   return res.status(200).json({
     success: true,
-    user: {
-      id: req.user._id.toString(),
-      firstName: req.user.firstName,
-      lastName: req.user.lastName,
-      email: req.user.email,
-      role: req.user.role,
+    data: {
+      user: {
+        id: req.user._id.toString(),
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        role: req.user.role,
+      },
     },
   });
 });
