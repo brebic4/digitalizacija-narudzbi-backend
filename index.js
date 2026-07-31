@@ -10,6 +10,7 @@ import customerRoutes from "./routes/customers.js";
 import productRoutes from "./routes/products.js";
 import ordersRoutes from "./routes/orders.js";
 import uploadsRouter from "./routes/uploads.js";
+import aiRouter from "./routes/ai.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/uploads", uploadsRouter);
+app.use("/api/ai", aiRouter);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
