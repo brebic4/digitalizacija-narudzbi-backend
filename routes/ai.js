@@ -15,6 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const uploadsDirectory = path.join(__dirname, "..", "uploads", "orders");
+const warnings = [];
 
 function normalizeText(value = "") {
   return value
@@ -297,6 +298,14 @@ router.post("/extract-order", auth, async (req, res) => {
       }
     }
 
+    if (!matchedCustomer) {
+      warnings.push({
+        type: "customer_not_found",
+        severity: "warning",
+        message: "Kupac nije pronađen u bazi.",
+      });
+    }
+
     const activeProducts = await productsCollection
       .find({
         active: {
@@ -321,6 +330,26 @@ router.post("/extract-order", auth, async (req, res) => {
       };
     });
 
+    matchedItems.forEach((item, index) => {
+      if (!item.matched) {
+        warnings.push({
+          type: "product_not_found",
+          severity: "warning",
+          itemIndex: index,
+          productName: item.originalProductName,
+          message: `Proizvod "${item.originalProductName}" nije pronađen u bazi.`,
+        });
+      }
+    });
+
+    if (matchedItems.length === 0) {
+      warnings.push({
+        type: "no_items_detected",
+        severity: "error",
+        message: "AI nije pronašao nijednu stavku narudžbe.",
+      });
+    }
+
     const matchedItemsCount = matchedItems.filter(
       (item) => item.matched,
     ).length;
@@ -331,6 +360,23 @@ router.post("/extract-order", auth, async (req, res) => {
       Boolean(matchedCustomer) &&
       matchedItems.length > 0 &&
       unmatchedItemsCount === 0;
+
+    if (!canCreateOrder) {
+      warnings.push({
+        type: "manual_review_required",
+        severity: "warning",
+        message: "Prije spremanja potrebno je ručno pregledati podatke.",
+      });
+    }
+
+    const confidenceSummary = {
+      customerMatched: Boolean(matchedCustomer),
+
+      productMatchingRate:
+        matchedItems.length === 0
+          ? 0
+          : Number((matchedItemsCount / matchedItems.length).toFixed(2)),
+    };
 
     const orderDraft = canCreateOrder
       ? {
@@ -394,6 +440,8 @@ router.post("/extract-order", auth, async (req, res) => {
 
         canCreateOrder,
         orderDraft,
+        warnings,
+        confidenceSummary,
 
         usage: response.usage
           ? {
