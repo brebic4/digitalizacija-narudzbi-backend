@@ -11,6 +11,7 @@ import productRoutes from "./routes/products.js";
 import ordersRoutes from "./routes/orders.js";
 import uploadsRouter from "./routes/uploads.js";
 import aiRouter from "./routes/ai.js";
+import dashboardRouter from "./routes/dashboard.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
