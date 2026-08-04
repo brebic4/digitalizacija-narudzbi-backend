@@ -66,6 +66,21 @@ router.get("/", async (req, res) => {
 
     const totalItems = await usersCollection.countDocuments(filter);
 
+    const [totalUsers, activeUsers, adminUsers, whatsappUsers] =
+      await Promise.all([
+        usersCollection.countDocuments({}),
+        usersCollection.countDocuments({
+          active: true,
+        }),
+        usersCollection.countDocuments({
+          role: "ADMIN",
+        }),
+        usersCollection.countDocuments({
+          active: true,
+          whatsappNotifications: true,
+        }),
+      ]);
+
     const users = await usersCollection
       .find(filter, {
         projection: {
@@ -87,6 +102,12 @@ router.get("/", async (req, res) => {
         currentPage: page,
         itemsPerPage: limit,
         totalPages: Math.ceil(totalItems / limit),
+      },
+      statistics: {
+        totalUsers,
+        activeUsers,
+        adminUsers,
+        whatsappUsers,
       },
     });
   } catch (error) {
