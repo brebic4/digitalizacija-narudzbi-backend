@@ -71,9 +71,64 @@ router.get("/", async (req, res) => {
       .limit(limit)
       .toArray();
 
+    const productIds = products.map((product) => product._id);
+
+    const productUsage = await db
+      .collection("orders")
+      .aggregate([
+        {
+          $match: {
+            "items.productId": {
+              $in: productIds,
+            },
+          },
+        },
+        {
+          $unwind: "$items",
+        },
+        {
+          $match: {
+            "items.productId": {
+              $in: productIds,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$items.productId",
+            orderIds: {
+              $addToSet: "$_id",
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            ordersCount: {
+              $size: "$orderIds",
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    const usageMap = new Map(
+      productUsage.map((usage) => [usage._id.toString(), usage.ordersCount]),
+    );
+
+    const productsWithUsage = products.map((product) => {
+      const ordersCount = usageMap.get(product._id.toString()) || 0;
+
+      return {
+        ...product,
+        ordersCount,
+        hasBeenUsed: ordersCount > 0,
+      };
+    });
+
     return res.status(200).json({
       success: true,
-      data: products,
+      data: productsWithUsage,
       pagination: {
         totalItems,
         currentPage: page,
@@ -419,7 +474,88 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Promjena aktivnog statusa proizvoda
+router.patch("/:id/active", async (req, res) => {
+  try {
+    const db = getDatabase();
+    const { id } = req.params;
+    const { active } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Neispravan ID proizvoda.",
+      });
+    }
+
+    if (typeof active !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Vrijednost active mora biti true ili false.",
+      });
+    }
+
+    const productId = new ObjectId(id);
+    const productsCollection = db.collection("products");
+
+    const product = await productsCollection.findOne({
+      _id: productId,
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Proizvod nije pronađen.",
+      });
+    }
+
+    if (product.active === active) {
+      return res.status(400).json({
+        success: false,
+        message: active
+          ? "Proizvod je već aktivan."
+          : "Proizvod je već neaktivan.",
+      });
+    }
+
+    const now = new Date();
+
+    await productsCollection.updateOne(
+      {
+        _id: productId,
+      },
+      {
+        $set: {
+          active,
+          updatedAt: now,
+        },
+      },
+    );
+
+    const savedProduct = await productsCollection.findOne({
+      _id: productId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: active
+        ? "Proizvod je uspješno aktiviran."
+        : "Proizvod je uspješno označen kao neaktivan.",
+      data: savedProduct,
+    });
+  } catch (error) {
+    console.error("Greška pri promjeni statusa proizvoda:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Dogodila se greška pri promjeni statusa proizvoda.",
+    });
+  }
+});
+
 // Brisanje proizvoda
+// Trajno brisanje dopušteno je samo ako proizvod
+// nikada nije korišten ni u jednoj narudžbi
 router.delete("/:id", async (req, res) => {
   try {
     const db = getDatabase();
@@ -432,16 +568,44 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    const result = await db.collection("products").deleteOne({
-      _id: new ObjectId(id),
+    const productId = new ObjectId(id);
+
+    const productsCollection = db.collection("products");
+
+    const ordersCollection = db.collection("orders");
+
+    const product = await productsCollection.findOne({
+      _id: productId,
     });
 
-    if (result.deletedCount === 0) {
+    if (!product) {
       return res.status(404).json({
         success: false,
         message: "Proizvod nije pronađen.",
       });
     }
+
+    const ordersCount = await ordersCollection.countDocuments({
+      "items.productId": productId,
+    });
+
+    if (ordersCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          ordersCount === 1
+            ? "Proizvod nije moguće obrisati jer se koristi u 1 narudžbi. Označite ga kao neaktivan."
+            : `Proizvod nije moguće obrisati jer se koristi u ${ordersCount} narudžbi. Označite ga kao neaktivan.`,
+        data: {
+          ordersCount,
+          canDeactivate: product.active,
+        },
+      });
+    }
+
+    await productsCollection.deleteOne({
+      _id: productId,
+    });
 
     return res.status(200).json({
       success: true,
