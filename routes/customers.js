@@ -278,7 +278,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/customers/:id
-// Brisanje kupca
+// Brisanje kupca samo ako nema aktivnih narudžbi
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -291,17 +291,42 @@ router.delete("/:id", async (req, res) => {
     }
 
     const db = getDatabase();
+    const customerObjectId = new ObjectId(id);
 
-    const result = await db.collection("customers").deleteOne({
-      _id: new ObjectId(id),
+    const customer = await db.collection("customers").findOne({
+      _id: customerObjectId,
     });
 
-    if (result.deletedCount === 0) {
+    if (!customer) {
       return res.status(404).json({
         success: false,
         message: "Kupac nije pronađen.",
       });
     }
+
+    const activeOrdersCount = await db.collection("orders").countDocuments({
+      customerId: customerObjectId,
+      status: {
+        $ne: "isporučena",
+      },
+    });
+
+    if (activeOrdersCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          activeOrdersCount === 1
+            ? "Kupca nije moguće obrisati jer ima 1 aktivnu narudžbu."
+            : `Kupca nije moguće obrisati jer ima ${activeOrdersCount} aktivne narudžbe.`,
+        data: {
+          activeOrdersCount,
+        },
+      });
+    }
+
+    await db.collection("customers").deleteOne({
+      _id: customerObjectId,
+    });
 
     return res.status(200).json({
       success: true,
