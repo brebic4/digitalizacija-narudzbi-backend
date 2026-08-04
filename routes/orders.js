@@ -24,30 +24,32 @@ const STATUS_TRANSITIONS = {
   isporučena: [],
 };
 
-//izračun ukupne količine za narudžbu
+// Izračun sažetka narudžbe za tablični prikaz
 function mapOrderToListItem(order) {
-  const itemsCount = order.items.length;
+  const items = Array.isArray(order.items) ? order.items : [];
 
-  const totalPackages = order.items.reduce(
-    (sum, item) => sum + item.quantity,
+  const itemsCount = items.length;
+
+  const totalPackages = items.reduce(
+    (sum, item) => sum + Number(item.quantity || 0),
     0,
   );
 
-  const totalWeightGrams = order.items.reduce(
-    (sum, item) => sum + item.totalWeightGrams,
+  const totalWeightGrams = items.reduce(
+    (sum, item) => sum + Number(item.totalWeightGrams || 0),
     0,
   );
 
   return {
     _id: order._id,
 
-    customerName: order.customerSnapshot.name,
+    customerName: order.customerSnapshot?.name || "Nepoznat kupac",
 
-    orderNumber: order.orderNumber,
+    orderNumber: order.orderNumber || "—",
 
-    deliveryDate: order.deliveryDate,
+    deliveryDate: order.deliveryDate || null,
 
-    status: order.status,
+    status: order.status || "nepoznat",
 
     itemsCount,
 
@@ -55,7 +57,7 @@ function mapOrderToListItem(order) {
 
     totalWeightKg: totalWeightGrams / 1000,
 
-    createdAt: order.createdAt,
+    createdAt: order.createdAt || null,
   };
 }
 
