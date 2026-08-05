@@ -15,7 +15,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const uploadsDirectory = path.join(__dirname, "..", "uploads", "orders");
-const warnings = [];
 
 function normalizeText(value = "") {
   return value
@@ -150,6 +149,7 @@ router.get("/test", auth, async (req, res) => {
 
 router.post("/extract-order", auth, async (req, res) => {
   let openaiFileId = null;
+  const warnings = [];
 
   try {
     const { fileName } = req.body ?? {};
