@@ -13,6 +13,7 @@ import uploadsRouter from "./routes/uploads.js";
 import aiRouter from "./routes/ai.js";
 import dashboardRouter from "./routes/dashboard.js";
 import usersRouter from "./routes/users.js";
+import chatbotRouter from "./routes/chatbot.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,7 @@ app.use("/api/uploads", uploadsRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/chatbot", chatbotRouter);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
